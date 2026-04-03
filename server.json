@@ -1,35 +1,37 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "eu.ansvar/french-cybersecurity-mcp",
-  "description": "Query ANSSI (Agence nationale de la sécurité des systèmes d'information) guidance including PGSSI-S, RGS, SecNumCloud, and CERT-FR security advisories",
+  "description": "ANSSI (French National Cybersecurity Agency) MCP server — guidance, advisories, PGSSI-S, RGS, SecNumCloud frameworks",
   "repository": {
     "url": "https://github.com/Ansvar-Systems/french-cybersecurity-mcp",
     "source": "github"
   },
   "homepage": "https://ansvar.eu",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
   "keywords": [
-    "anssi",
-    "french-cybersecurity",
-    "pgssi-s",
-    "rgs",
-    "secnumcloud",
-    "cert-fr",
     "cybersecurity",
     "france",
-    "information-security",
+    "regulation",
     "compliance",
-    "mcp",
-    "ansvar"
+    "mcp"
   ],
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@ansvar/french-cybersecurity-mcp",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "transport": {
         "type": "stdio"
+      }
+    },
+    {
+      "registryType": "npm",
+      "identifier": "@ansvar/french-cybersecurity-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://mcp.ansvar.eu/french-cybersecurity/mcp"
       }
     }
   ]
