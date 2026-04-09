@@ -2,9 +2,9 @@
  * SQLite database access layer for the French Cybersecurity (ANSSI) MCP server.
  *
  * Schema:
- *   - guidance    — NCSC guidance documents (Cyber Essentials, 10 Steps, CAF, etc.)
- *   - advisories  — NCSC security advisories and alerts
- *   - frameworks  — NCSC framework series (Cyber Essentials, CAF, 10 Steps)
+ *   - guidance    — ANSSI guidance documents (PGSSI-S, RGS, SecNumCloud, etc.)
+ *   - advisories  — CERT-FR security advisories and alerts
+ *   - frameworks  — ANSSI framework series (PGSSI-S, RGS, SecNumCloud)
  *
  * FTS5 virtual tables back full-text search on guidance and advisories.
  */
@@ -260,4 +260,25 @@ export function listFrameworks(): Framework[] {
   return db
     .prepare("SELECT * FROM frameworks ORDER BY id")
     .all() as Framework[];
+}
+
+// --- Data freshness -----------------------------------------------------------
+
+export interface DataFreshness {
+  guidance_latest: string | null;
+  advisories_latest: string | null;
+}
+
+export function getDataFreshness(): DataFreshness {
+  const db = getDb();
+  const guidanceRow = db
+    .prepare("SELECT MAX(date) as latest FROM guidance")
+    .get() as { latest: string | null };
+  const advisoriesRow = db
+    .prepare("SELECT MAX(date) as latest FROM advisories")
+    .get() as { latest: string | null };
+  return {
+    guidance_latest: guidanceRow?.latest ?? null,
+    advisories_latest: advisoriesRow?.latest ?? null,
+  };
 }

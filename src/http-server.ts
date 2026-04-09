@@ -29,7 +29,9 @@ import {
   searchAdvisories,
   getAdvisory,
   listFrameworks,
+  getDataFreshness,
 } from "./db.js";
+import { buildCitation } from "./citation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,7 +68,7 @@ const TOOLS = [
         series: {
           type: "string",
           enum: ["PGSSI-S", "RGS", "SecNumCloud", "ANSSI"],
-          description: "Filter by NCSC series. Optional.",
+          description: "Filter by ANSSI series. Optional.",
         },
         status: {
           type: "string",
@@ -130,7 +132,29 @@ const TOOLS = [
     description: "Return metadata about this MCP server: version, data source, coverage, and tool list.",
     inputSchema: { type: "object" as const, properties: {}, required: [] },
   },
+  {
+    name: "fr_cyber_list_sources",
+    description:
+      "List all data sources used by this MCP, including ANSSI and CERT-FR official URLs with descriptions.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "fr_cyber_check_data_freshness",
+    description:
+      "Check how recent the data is. Returns the latest document date in the guidance and advisories tables so callers can assess data staleness.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
 ];
+
+// --- Meta block (added to all tool responses) --------------------------------
+
+const META = {
+  disclaimer:
+    "This server provides ANSSI guidance and CERT-FR advisories for research purposes only. Not legal or regulatory advice. Verify all references against primary sources before making compliance decisions.",
+  copyright:
+    "Content sourced from ANSSI (Agence nationale de la sécurité des systèmes d'information) and CERT-FR. Official content is subject to French government copyright.",
+  source_url: "https://www.ssi.gouv.fr/",
+};
 
 // --- Zod schemas -------------------------------------------------------------
 
@@ -195,7 +219,7 @@ function createMcpServer(): Server {
             status: parsed.status,
             limit: parsed.limit,
           });
-          return textContent({ results, count: results.length });
+          return textContent({ results, count: results.length, _meta: META });
         }
 
         case "fr_cyber_get_guidance": {
@@ -204,7 +228,18 @@ function createMcpServer(): Server {
           if (!doc) {
             return errorContent(`Guidance document not found: ${parsed.reference}`);
           }
-          return textContent(doc);
+          const guidanceRecord = doc as Record<string, unknown>;
+          return textContent({
+            ...guidanceRecord,
+            _citation: buildCitation(
+              String(guidanceRecord.reference ?? parsed.reference),
+              String(guidanceRecord.title ?? guidanceRecord.reference ?? parsed.reference),
+              "fr_cyber_get_guidance",
+              { reference: parsed.reference },
+              guidanceRecord.url as string | undefined,
+            ),
+            _meta: META,
+          });
         }
 
         case "fr_cyber_search_advisories": {
@@ -214,7 +249,7 @@ function createMcpServer(): Server {
             severity: parsed.severity,
             limit: parsed.limit,
           });
-          return textContent({ results, count: results.length });
+          return textContent({ results, count: results.length, _meta: META });
         }
 
         case "fr_cyber_get_advisory": {
@@ -223,12 +258,23 @@ function createMcpServer(): Server {
           if (!advisory) {
             return errorContent(`Advisory not found: ${parsed.reference}`);
           }
-          return textContent(advisory);
+          const advisoryRecord = advisory as Record<string, unknown>;
+          return textContent({
+            ...advisoryRecord,
+            _citation: buildCitation(
+              String(advisoryRecord.reference ?? parsed.reference),
+              String(advisoryRecord.title ?? advisoryRecord.reference ?? parsed.reference),
+              "fr_cyber_get_advisory",
+              { reference: parsed.reference },
+              advisoryRecord.url as string | undefined,
+            ),
+            _meta: META,
+          });
         }
 
         case "fr_cyber_list_frameworks": {
           const frameworks = listFrameworks();
-          return textContent({ frameworks, count: frameworks.length });
+          return textContent({ frameworks, count: frameworks.length, _meta: META });
         }
 
         case "fr_cyber_about": {
@@ -236,9 +282,40 @@ function createMcpServer(): Server {
             name: SERVER_NAME,
             version: pkgVersion,
             description:
-              "ANSSI (Agence nationale de la sécurité des systèmes d'information) MCP server. Provides access to ANSSI guidance including PGSSI-S, RGS, SecNumCloud, and security advisories.",
+              "ANSSI (Agence nationale de la sécurité des systèmes d'information) MCP server. Provides access to ANSSI guidance including PGSSI-S, RGS, SecNumCloud, and CERT-FR security advisories.",
             data_source: "ANSSI (https://www.ssi.gouv.fr/)",
             tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
+            _meta: META,
+          });
+        }
+
+        case "fr_cyber_list_sources": {
+          return textContent({
+            sources: [
+              {
+                name: "ANSSI",
+                full_name: "Agence nationale de la sécurité des systèmes d'information",
+                url: "https://www.ssi.gouv.fr/",
+                description: "French national cybersecurity agency. Publishes PGSSI-S, RGS, SecNumCloud frameworks and technical recommendations.",
+              },
+              {
+                name: "CERT-FR",
+                full_name: "Centre gouvernemental de veille, d'alerte et de réponse aux attaques informatiques",
+                url: "https://www.cert.ssi.gouv.fr/",
+                description: "French government CERT. Publishes security advisories, alerts, and incident reports.",
+              },
+            ],
+            _meta: META,
+          });
+        }
+
+        case "fr_cyber_check_data_freshness": {
+          const freshness = getDataFreshness();
+          return textContent({
+            guidance_latest_date: freshness.guidance_latest,
+            advisories_latest_date: freshness.advisories_latest,
+            note: "Dates reflect the most recent document date in each table. null means the table is empty.",
+            _meta: META,
           });
         }
 

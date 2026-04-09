@@ -4,8 +4,7 @@
  * French Cybersecurity MCP — stdio entry point.
  *
  * Provides MCP tools for querying ANSSI (Agence nationale de la sécurité des systèmes d'information)
- * guidance documents, Cyber Essentials, CAF, 10 Steps to Cyber Security,
- * and security advisories.
+ * guidance documents (PGSSI-S, RGS, SecNumCloud) and CERT-FR security advisories.
  *
  * Tool prefix: fr_cyber_
  */
@@ -26,6 +25,7 @@ import {
   searchAdvisories,
   getAdvisory,
   listFrameworks,
+  getDataFreshness,
 } from "./db.js";
 import { buildCitation } from "./citation.js";
 
@@ -50,7 +50,7 @@ const TOOLS = [
   {
     name: "fr_cyber_search_guidance",
     description:
-      "Full-text search across NCSC guidance documents. Covers PGSSI-S, RGS, SecNumCloud, Référentiel de sécurité, and technical publications. Returns matching documents with reference, title, series, and summary.",
+      "Full-text search across ANSSI guidance documents. Covers PGSSI-S, RGS, SecNumCloud, Référentiel de sécurité, and technical publications. Returns matching documents with reference, title, series, and summary.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -66,7 +66,7 @@ const TOOLS = [
         series: {
           type: "string",
           enum: ["PGSSI-S", "RGS", "SecNumCloud", "ANSSI"],
-          description: "Filter by NCSC series. Optional.",
+          description: "Filter by ANSSI series. Optional.",
         },
         status: {
           type: "string",
@@ -84,7 +84,7 @@ const TOOLS = [
   {
     name: "fr_cyber_get_guidance",
     description:
-      "Get a specific NCSC guidance document by reference (e.g., 'ANSSI-PGSSI-2021', 'ANSSI-RGS-2.0', 'ANSSI-SecNumCloud-3.2').",
+      "Get a specific ANSSI guidance document by reference (e.g., 'ANSSI-PGSSI-2021', 'ANSSI-RGS-2.0', 'ANSSI-SecNumCloud-3.2').",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -123,13 +123,13 @@ const TOOLS = [
   {
     name: "fr_cyber_get_advisory",
     description:
-      "Get a specific NCSC security advisory by reference (e.g., 'ANSSI-ADV-2024-001').",
+      "Get a specific ANSSI security advisory by reference (e.g., 'ANSSI-ADV-2024-001').",
     inputSchema: {
       type: "object" as const,
       properties: {
         reference: {
           type: "string",
-          description: "NCSC advisory reference (e.g., 'ANSSI-ADV-2024-001')",
+          description: "ANSSI advisory reference (e.g., 'ANSSI-ADV-2024-001')",
         },
       },
       required: ["reference"],
@@ -148,6 +148,26 @@ const TOOLS = [
   {
     name: "fr_cyber_about",
     description: "Return metadata about this MCP server: version, data source, coverage, and tool list.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "fr_cyber_list_sources",
+    description:
+      "List all data sources used by this MCP, including ANSSI and CERT-FR official URLs with descriptions.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "fr_cyber_check_data_freshness",
+    description:
+      "Check how recent the data is. Returns the latest document date in the guidance and advisories tables so callers can assess data staleness.",
     inputSchema: {
       type: "object" as const,
       properties: {},
@@ -179,6 +199,16 @@ const SearchAdvisoriesArgs = z.object({
 const GetAdvisoryArgs = z.object({
   reference: z.string().min(1),
 });
+
+// --- Meta block (added to all tool responses) --------------------------------
+
+const META = {
+  disclaimer:
+    "This server provides ANSSI guidance and CERT-FR advisories for research purposes only. Not legal or regulatory advice. Verify all references against primary sources before making compliance decisions.",
+  copyright:
+    "Content sourced from ANSSI (Agence nationale de la sécurité des systèmes d'information) and CERT-FR. Official content is subject to French government copyright.",
+  source_url: "https://www.ssi.gouv.fr/",
+};
 
 // --- Helper ------------------------------------------------------------------
 
@@ -222,7 +252,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           status: parsed.status,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        return textContent({ results, count: results.length, _meta: META });
       }
 
       case "fr_cyber_get_guidance": {
@@ -241,6 +271,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             { reference: parsed.reference },
             guidanceRecord.url as string | undefined,
           ),
+          _meta: META,
         });
       }
 
@@ -251,7 +282,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           severity: parsed.severity,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        return textContent({ results, count: results.length, _meta: META });
       }
 
       case "fr_cyber_get_advisory": {
@@ -270,12 +301,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             { reference: parsed.reference },
             advisoryRecord.url as string | undefined,
           ),
+          _meta: META,
         });
       }
 
       case "fr_cyber_list_frameworks": {
         const frameworks = listFrameworks();
-        return textContent({ frameworks, count: frameworks.length });
+        return textContent({ frameworks, count: frameworks.length, _meta: META });
       }
 
       case "fr_cyber_about": {
@@ -283,7 +315,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name: SERVER_NAME,
           version: pkgVersion,
           description:
-            "ANSSI (Agence nationale de la sécurité des systèmes d'information) MCP server. Provides access to NCSC guidance including Cyber Essentials, 10 Steps to Cyber Security, Cyber Assessment Framework (CAF), and security advisories.",
+            "ANSSI (Agence nationale de la sécurité des systèmes d'information) MCP server. Provides access to ANSSI guidance including PGSSI-S, RGS, SecNumCloud, and CERT-FR security advisories.",
           data_source: "ANSSI (https://www.ssi.gouv.fr/)",
           coverage: {
             guidance: "PGSSI-S, RGS, SecNumCloud, Référentiel de sécurité",
@@ -291,6 +323,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             frameworks: "PGSSI-S, RGS, SecNumCloud",
           },
           tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
+          _meta: META,
+        });
+      }
+
+      case "fr_cyber_list_sources": {
+        return textContent({
+          sources: [
+            {
+              name: "ANSSI",
+              full_name: "Agence nationale de la sécurité des systèmes d'information",
+              url: "https://www.ssi.gouv.fr/",
+              description: "French national cybersecurity agency. Publishes PGSSI-S, RGS, SecNumCloud frameworks and technical recommendations.",
+            },
+            {
+              name: "CERT-FR",
+              full_name: "Centre gouvernemental de veille, d'alerte et de réponse aux attaques informatiques",
+              url: "https://www.cert.ssi.gouv.fr/",
+              description: "French government CERT. Publishes security advisories, alerts, and incident reports.",
+            },
+          ],
+          _meta: META,
+        });
+      }
+
+      case "fr_cyber_check_data_freshness": {
+        const freshness = getDataFreshness();
+        return textContent({
+          guidance_latest_date: freshness.guidance_latest,
+          advisories_latest_date: freshness.advisories_latest,
+          note: "Dates reflect the most recent document date in each table. null means the table is empty.",
+          _meta: META,
         });
       }
 

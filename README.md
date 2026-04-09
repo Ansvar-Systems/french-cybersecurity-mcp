@@ -4,7 +4,6 @@
 
 [![npm version](https://badge.fury.io/js/%40ansvar%2Ffrench-cybersecurity-mcp.svg)](https://www.npmjs.com/package/@ansvar/french-cybersecurity-mcp)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CI](https://github.com/Ansvar-Systems/french-cybersecurity-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Ansvar-Systems/french-cybersecurity-mcp/actions/workflows/ci.yml)
 
 Query French cybersecurity data -- regulations, decisions, and requirements from ANSSI (Agence nationale de la securite des systemes d'information) -- directly from Claude, Cursor, or any MCP-compatible client.
 
@@ -90,16 +89,18 @@ npx @ansvar/french-cybersecurity-mcp
 
 ---
 
-## Available Tools (6)
+## Available Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `fr_cyber_search_guidance` | Full-text search across NCSC guidance documents. Covers PGSSI-S, RGS, SecNumCloud, Référentiel de sécurité, and techn... |
-| `fr_cyber_get_guidance` | Get a specific NCSC guidance document by reference (e.g., |
-| `fr_cyber_search_advisories` | Search ANSSI security advisories and alerts (CERT-FR). Returns advisories with severity, affected products, and CVE r... |
-| `fr_cyber_get_advisory` | Get a specific NCSC security advisory by reference (e.g., |
+| `fr_cyber_search_guidance` | Full-text search across ANSSI guidance documents. Covers PGSSI-S, RGS, SecNumCloud, Référentiel de sécurité, and technical publications. |
+| `fr_cyber_get_guidance` | Get a specific ANSSI guidance document by reference (e.g., 'ANSSI-PGSSI-2021', 'ANSSI-SecNumCloud-3.2'). |
+| `fr_cyber_search_advisories` | Search ANSSI security advisories and alerts (CERT-FR). Returns advisories with severity, affected products, and CVE references. |
+| `fr_cyber_get_advisory` | Get a specific ANSSI security advisory by reference (e.g., 'ANSSI-ADV-2024-001'). |
 | `fr_cyber_list_frameworks` | List all ANSSI frameworks and guidance series covered in this MCP, including PGSSI-S, RGS, and SecNumCloud. |
 | `fr_cyber_about` | Return metadata about this MCP server: version, data source, coverage, and tool list. |
+| `fr_cyber_list_sources` | List all data sources used by this MCP, including ANSSI and CERT-FR official URLs with descriptions. |
+| `fr_cyber_check_data_freshness` | Check how recent the data is. Returns the latest document date in the guidance and advisories tables. |
 
 All tools return structured data with source references and timestamps.
 
@@ -117,7 +118,7 @@ All content is sourced from official French regulatory publications:
 - Freshness checks run via GitHub Actions workflows
 - Last-updated timestamps in tool responses indicate data age
 
-See `sources.yml` for full provenance metadata.
+See [COVERAGE.md](COVERAGE.md) for full corpus coverage details.
 
 ---
 
@@ -180,8 +181,8 @@ npx @anthropic/mcp-inspector node dist/index.js   # Test with MCP Inspector
 ### Data Management
 
 ```bash
-npm run build:db       # Rebuild SQLite database from seed data
-npm run check-updates  # Check for new regulatory data
+npm run seed           # Rebuild SQLite database from seed data
+npm run ingest         # Ingest latest data from ANSSI
 ```
 
 ---
@@ -218,7 +219,7 @@ Apache License 2.0. See [LICENSE](./LICENSE) for details.
 
 ### Data Licenses
 
-Regulatory data sourced from official government publications. See `sources.yml` for per-source licensing details.
+Regulatory data sourced from official government publications. See [COVERAGE.md](COVERAGE.md) for per-source coverage details.
 
 ---
 
